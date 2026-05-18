@@ -67,8 +67,24 @@ def stock_analysis(ticker_symbol):
     hist = ticker.history(period="1y")
     
     # 基礎價格與動能
-    current_price = info.get('currentPrice', info.get('regularMarketPrice', 'N/A'))
+    # 優化後的寫法
+    current_price = info.get('currentPrice', info.get('regularMarketPrice', None))
+
+# 如果 info 抓不到股價，就從歷史數據(hist)的最後一筆收盤價來拿
+    # 基礎價格與動能
+    current_price = info.get('currentPrice', info.get('regularMarketPrice', None))
+    
+    # 如果 info 抓不到股價，就從歷史數據(hist)的最後一筆收盤價來拿
+    if current_price is None and not hist.empty:
+        current_price = round(hist['Close'].iloc[-1], 2)
+    elif current_price is None:
+        current_price = 'N/A'
+        
+    # 🌟 這行絕對不能漏掉，剛剛報錯就是因為少了它！
     change_52w = info.get('52WeekChange', 'N/A')
+    
+    # 估值指標
+    trailing_pe = info.get('trailingPE', 'N/A')
     
     # 估值指標
     trailing_pe = info.get('trailingPE', 'N/A')
@@ -137,6 +153,12 @@ def stock_analysis(ticker_symbol):
 
 if __name__ == "__main__":
     symbol = input("請輸入股票代號 (例如 AAPL, TSLA, 2330.TW): ")
+    
+    # 🌟 新增防呆機制：如果使用者只打了 4 個數字，自動幫他加上 .TW
+    if symbol.isdigit() and len(symbol) == 4:
+        symbol = symbol + ".TW"
+        print(f"👉 偵測到純數字，已自動將代號修正為: {symbol}")
+        
     try:
         stock_analysis(symbol)
     except Exception as e:
