@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 股票量化分析雷達</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --primary: #2A9D8F;
+            --text-dark: #264653;
+            --text-light: #6c757d;
+            --border-radius: 16px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 標題區 */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        header h1 { margin: 0; font-size: 2.5rem; letter-spacing: 2px; }
+        header p { color: var(--text-light); margin-top: 5px; }
+
+        /* 頂部熱門股票跑馬燈/網格 */
+        .hot-stocks-container {
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 40px;
+        }
+        .hot-stocks-title { font-size: 1.2rem; margin-bottom: 15px; font-weight: bold; border-left: 4px solid var(--primary); padding-left: 10px; }
+        .hot-stocks-grid {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            scrollbar-width: thin;
+        }
+        .stock-pill {
+            background: var(--card-bg);
+            padding: 12px 24px;
+            border-radius: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .stock-pill:hover {
+            transform: translateY(-3px);
+            background: white;
+            box-shadow: 0 6px 12px rgba(42, 157, 143, 0.15);
+            border-color: var(--primary);
+        }
+        .pill-ticker { font-weight: bold; }
+        .pill-price { color: var(--primary); font-size: 0.9rem;}
+
+        /* 搜尋區塊 */
+        .search-section {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            gap: 10px;
+            margin-bottom: 40px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            outline: none;
+            transition: box-shadow 0.3s ease;
+        }
+        input[type="text"]:focus { box-shadow: 0 4px 20px rgba(42, 157, 143, 0.2); }
+        button {
+            padding: 16px 32px;
+            border: none;
+            border-radius: 30px;
+            background: var(--primary);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(42, 157, 143, 0.3);
+            transition: background 0.3s ease, transform 0.1s;
+        }
+        button:hover { background: #21867a; }
+        button:active { transform: scale(0.98); }
+
+        /* 飛鴿加載動畫 */
+        #loading-pigeon {
+            display: none; /* 預設隱藏 */
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+            animation: bounce 1.5s infinite ease-in-out;
+        }
+        .pigeon-icon { font-size: 3rem; }
+        .pigeon-text { color: var(--primary); font-weight: bold; margin-top: 10px; letter-spacing: 1px;}
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px) rotate(5deg); }
+        }
+
+        /* 報告結果區 (CSS Grid) */
+        #report-dashboard {
+            display: none; /* 預設隱藏 */
+            width: 100%;
+            max-width: 1000px;
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            box-sizing: border-box;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+        .report-header { border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
+        .report-header h2 { margin: 0; color: var(--primary); font-size: 1.8rem; }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .data-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+        .data-card h3 { margin-top: 0; font-size: 1.1rem; border-bottom: 1px dashed #ddd; padding-bottom: 10px; color: var(--text-dark); }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
+        .data-label { color: var(--text-light); }
+        .data-value { font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>AI 量化特質雷達</h1>
+        <p>優雅、精準，一鍵透視市場動能</p>
+    </header>
+
+    <div class="hot-stocks-container">
+        <div class="hot-stocks-title">🔥 焦點百大台股 (點擊即時分析)</div>
+        <div class="hot-stocks-grid" id="hot-stocks-list">
+            </div>
+    </div>
+
+    <div class="search-section">
+        <input type="text" id="ticker-input" placeholder="輸入股票代號 (如: 2330.TW, AAPL)..." autocomplete="off">
+        <button onclick="triggerSearch()">深度掃描</button>
+    </div>
+
+    <div id="loading-pigeon">
+        <div class="pigeon-icon">🕊️</div>
+        <div class="pigeon-text">飛鴿傳書，運算中...</div>
+    </div>
+
+    <div id="report-dashboard">
+        <div class="report-header">
+            <h2 id="report-title">股票代號分析報告</h2>
+        </div>
+        <div class="dashboard-grid">
+            <div class="data-card">
+                <h3>基本資訊與價格</h3>
+                <div class="data-row"><span class="data-label">當前股價</span><span class="data-value" id="val-price">--</span></div>
+                <div class="data-row"><span class="data-label">52週漲幅</span><span class="data-value" id="val-52w">--</span></div>
+                <div class="data-row"><span class="data-label">股價動能 (Beta)</span><span class="data-value" id="val-beta">--</span></div>
+            </div>
+            <div class="data-card">
+                <h3>估值指標</h3>
+                <div class="data-row"><span class="data-label">追蹤 PE</span><span class="data-value" id="val-pe">--</span></div>
+                <div class="data-row"><span class="data-label">PEG</span><span class="data-value" id="val-peg">--</span></div>
+                <div class="data-row"><span class="data-label">股息殖利率</span><span class="data-value" id="val-div">--</span></div>
+            </div>
+            <div class="data-card">
+                <h3>成長與財務</h3>
+                <div class="data-row"><span class="data-label">營收成長率</span><span class="data-value" id="val-rev">--</span></div>
+                <div class="data-row"><span class="data-label">ROE</span><span class="data-value" id="val-roe">--</span></div>
+                <div class="data-row"><span class="data-label">D/E (債資比)</span><span class="data-value" id="val-de">--</span></div>
+            </div>
+            <div class="data-card">
+                <h3>技術指標 (最新)</h3>
+                <div class="data-row"><span class="data-label">RSI (14)</span><span class="data-value" id="val-rsi">--</span></div>
+                <div class="data-row"><span class="data-label">MACD (DIF)</span><span class="data-value" id="val-macd">--</span></div>
+                <div class="data-row"><span class="data-label">KD (K值)</span><span class="data-value" id="val-k">--</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. 模擬熱門股票清單 (實務上這也是由後端提供)
+        const hotStocks = [
+            { ticker: "2330.TW", name: "台積電", price: "1050.0" },
+            { ticker: "2317.TW", name: "鴻海", price: "210.5" },
+            { ticker: "2454.TW", name: "聯發科", price: "1250.0" },
+            { ticker: "2382.TW", name: "廣達", price: "285.0" },
+            { ticker: "3231.TW", name: "緯創", price: "115.5" },
+            { ticker: "2308.TW", name: "台達電", price: "345.0" },
+            { ticker: "NVDA", name: "輝達", price: "125.8" },
+            { ticker: "AAPL", name: "蘋果", price: "215.3" }
+        ];
+
+        // 2. 初始化熱門區塊
+        const hotStocksList = document.getElementById('hot-stocks-list');
+        hotStocks.forEach(stock => {
+            const pill = document.createElement('div');
+            pill.className = 'stock-pill';
+            pill.innerHTML = `<span class="pill-ticker">${stock.name} (${stock.ticker})</span><span class="pill-price">$${stock.price}</span>`;
+            // 點擊事件：連動到搜尋框並觸發搜尋
+            pill.onclick = () => {
+                document.getElementById('ticker-input').value = stock.ticker;
+                triggerSearch();
+            };
+            hotStocksList.appendChild(pill);
+        });
+
+        // 3. 搜尋按鈕與 Enter 鍵綁定
+        document.getElementById('ticker-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') triggerSearch();
+        });
+
+        // 4. 核心搜尋與動畫邏輯
+        function triggerSearch() {
+            const input = document.getElementById('ticker-input').value.trim();
+            if (!input) return;
+
+            // 隱藏報告，顯示飛鴿
+            document.getElementById('report-dashboard').style.display = 'none';
+            document.getElementById('loading-pigeon').style.display = 'flex';
+
+            // 這裡用 setTimeout 模擬去呼叫 Python API 的等待時間 (2.5秒)
+            setTimeout(() => {
+                // 隱藏飛鴿，顯示報告
+                document.getElementById('loading-pigeon').style.display = 'none';
+                document.getElementById('report-dashboard').style.display = 'block';
+                
+                // 填入資料 (目前為模擬，未來將替換為 Python 吐回的 JSON)
+                document.getElementById('report-title').innerText = `📊 ${input} 深度分析報告`;
+                
+                // 產生一些隨機假資料來展示版面效果
+                document.getElementById('val-price').innerText = (Math.random() * 500).toFixed(2);
+                document.getElementById('val-52w').innerText = (Math.random() * 50).toFixed(2) + '%';
+                document.getElementById('val-pe').innerText = (Math.random() * 30 + 10).toFixed(2);
+                document.getElementById('val-peg').innerText = (Math.random() * 2).toFixed(2);
+                document.getElementById('val-roe').innerText = (Math.random() * 25).toFixed(2) + '%';
+                document.getElementById('val-rsi').innerText = (Math.random() * 60 + 20).toFixed(2);
+                document.getElementById('val-macd').innerText = (Math.random() * 5).toFixed(2);
+                document.getElementById('val-k').innerText = (Math.random() * 80 + 10).toFixed(2);
+                
+            }, 2500); // 飛鴿飛行 2.5 秒
+        }
+    </script>
+</body>
+</html>
