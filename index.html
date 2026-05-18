@@ -241,36 +241,60 @@
             if (e.key === 'Enter') triggerSearch();
         });
 
-        // 4. 核心搜尋與動畫邏輯
-        function triggerSearch() {
-            const input = document.getElementById('ticker-input').value.trim();
+        // 4. 核心搜尋與動畫邏輯 (靜態 API 連動版)
+        async function triggerSearch() {
+            let input = document.getElementById('ticker-input').value.trim().toUpperCase();
+            
+            // 防呆：純數字自動加 .TW
+            if (/^\d{4}$/.test(input)) {
+                input += ".TW";
+                document.getElementById('ticker-input').value = input;
+            }
+
             if (!input) return;
 
             // 隱藏報告，顯示飛鴿
             document.getElementById('report-dashboard').style.display = 'none';
             document.getElementById('loading-pigeon').style.display = 'flex';
 
-            // 這裡用 setTimeout 模擬去呼叫 Python API 的等待時間 (2.5秒)
-            setTimeout(() => {
-                // 隱藏飛鴿，顯示報告
+            try {
+                // 🚀 關鍵：去抓取 GitHub 機器人算好的 JSON 檔案
+                // 加上時間戳 (?t=...) 防止瀏覽器讀到舊的快取
+                const response = await fetch('data.json?t=' + new Date().getTime());
+                const database = await response.json();
+
+                // 讓飛鴿飛 2 秒鐘 (純視覺體驗)
+                setTimeout(() => {
+                    document.getElementById('loading-pigeon').style.display = 'none';
+                    
+                    // 檢查這檔股票在不在我們的 JSON 資料庫裡
+                    if (database[input]) {
+                        const stock = database[input];
+                        
+                        document.getElementById('report-dashboard').style.display = 'block';
+                        document.getElementById('report-title').innerText = `📊 ${input} 深度分析報告`;
+                        
+                        // 把 JSON 裡的真實數據塞進網頁
+                        document.getElementById('val-price').innerText = stock.price;
+                        document.getElementById('val-52w').innerText = stock["52w"];
+                        document.getElementById('val-beta').innerText = stock.beta;
+                        document.getElementById('val-pe').innerText = stock.pe;
+                        document.getElementById('val-peg').innerText = stock.peg;
+                        document.getElementById('val-div').innerText = stock.div;
+                        document.getElementById('val-roe').innerText = stock.roe;
+                        
+                        // 技術指標先放 N/A (因為剛剛 Python 簡化版沒抓，若你有加進去就可以填)
+                        document.getElementById('val-rsi').innerText = "請見圖表";
+                        document.getElementById('val-macd').innerText = "請見圖表";
+                        document.getElementById('val-k').innerText = "請見圖表";
+                    } else {
+                        alert(`飛鴿找不到 ${input} 的資料！目前大腦僅儲存百大熱門股清單。`);
+                    }
+                }, 2000); 
+
+            } catch (error) {
+                console.error("讀取 JSON 失敗:", error);
+                alert("飛鴿迷路了！無法讀取資料庫，請確認 data.json 是否存在。");
                 document.getElementById('loading-pigeon').style.display = 'none';
-                document.getElementById('report-dashboard').style.display = 'block';
-                
-                // 填入資料 (目前為模擬，未來將替換為 Python 吐回的 JSON)
-                document.getElementById('report-title').innerText = `📊 ${input} 深度分析報告`;
-                
-                // 產生一些隨機假資料來展示版面效果
-                document.getElementById('val-price').innerText = (Math.random() * 500).toFixed(2);
-                document.getElementById('val-52w').innerText = (Math.random() * 50).toFixed(2) + '%';
-                document.getElementById('val-pe').innerText = (Math.random() * 30 + 10).toFixed(2);
-                document.getElementById('val-peg').innerText = (Math.random() * 2).toFixed(2);
-                document.getElementById('val-roe').innerText = (Math.random() * 25).toFixed(2) + '%';
-                document.getElementById('val-rsi').innerText = (Math.random() * 60 + 20).toFixed(2);
-                document.getElementById('val-macd').innerText = (Math.random() * 5).toFixed(2);
-                document.getElementById('val-k').innerText = (Math.random() * 80 + 10).toFixed(2);
-                
-            }, 2500); // 飛鴿飛行 2.5 秒
+            }
         }
-    </script>
-</body>
-</html>
