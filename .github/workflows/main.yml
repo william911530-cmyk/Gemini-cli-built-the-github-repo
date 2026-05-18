@@ -25,7 +25,7 @@ jobs:
           
       - name: 執行全大盤特徵提取腳本
         # 🌟 注意：如果你的 Python 檔名是 stock_analyzer.py，請把下面這行改成 python stock_analyzer.py
-        run: python update_all_market.py 
+        run: python stock_analyzer.py 
         
       - name: 將最新分片資料庫推送回 GitHub
         run: |
