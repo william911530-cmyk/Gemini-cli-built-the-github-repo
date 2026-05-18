@@ -23,7 +23,7 @@ jobs:
           pip install yfinance pandas requests beautifulsoup4
           
       - name: 執行全大盤特徵提取腳本
-        run: python update_all_market.py
+        run: python stock_analyzer.py
         
       - name: 將最新分片資料庫推送回 GitHub
         run: |
