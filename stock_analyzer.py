@@ -59,7 +59,10 @@ def main():
     # 🌟 在這裡隨意加入你想監測的所有台股與美股代號
     market_tickers = [
         "2330.TW", "2317.TW", "2454.TW", "2382.TW", "3231.TW", 
-        "AAPL", "NVDA", "TSLA", "MSFT", "AMD", "GOOGL", "AMZN", "META"
+        "AAPL", "NVDA", "TSLA", "MSFT", "AMD", "GOOGL", "AMZN", "META","NVDA", "ARM", "PLTR", "BE", "CRWD", "DDOG", "AMD", "SNOW", "MDB", "NET", "ZS", "NOW", "TSLA", "SMCI", "VRT", "CELH", "APP", "PATH", "SYM", "AI", "SOFI", "HOOD", "COIN", "MSTR", "UBER",
+             "TSM", "AVGO", "MU", "META", "GOOGL", "AMZN", "WDC", "STX", "DELL", "ASML", "QCOM", "AMAT", "LRCX", "KLAC", "MRVL", "ANET", "SNPS", "CDNS", "ORCL", "TXN", "ADI", "NXPI", "ON", "ACN", "IBM",
+             "WDAY", "DOCN", "U", "RBLX", "ZM", "PINS", "ETSY", "SHOP", "SQ", "ROKU", "TEAM", "GTLB", "ESTC", "DT", "DASH", "LYFT", "SE", "MELI", "CHWY", "CVNA", "AFRM", "UPST", "TOST", "BILL", "ENPH",
+             "CSCO", "INTC", "T", "VZ", "BABA", "JD", "BIDU", "NTAP", "PSTG", "JNPR", "FFIV", "GLW", "SWKS", "QRVO", "MCHP", "TER", "ENTG", "LSCC", "WOLF", "TMUS", "ZTS", "CTRA", "TPR", "NEE", "DUK"
     ]
     
     print(f"📥 正在執行大批次下載歷史K線數據 (總計 {len(market_tickers)} 檔)...")
