@@ -151,7 +151,6 @@
         .data-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
         .data-label { color: var(--text-light); }
         .data-value { font-weight: bold; }
-
     </style>
 </head>
 <body>
@@ -162,13 +161,12 @@
     </header>
 
     <div class="hot-stocks-container">
-        <div class="hot-stocks-title">🔥 焦點百大台股 (點擊即時分析)</div>
-        <div class="hot-stocks-grid" id="hot-stocks-list">
-            </div>
+        <div class="hot-stocks-title">🔥 焦點百大台美股 (點擊即時分析)</div>
+        <div class="hot-stocks-grid" id="hot-stocks-list"></div>
     </div>
 
     <div class="search-section">
-        <input type="text" id="ticker-input" placeholder="輸入股票代號 (如: 2330.TW, AAPL)..." autocomplete="off">
+        <input type="text" id="ticker-input" placeholder="輸入股票代號 (如: 2330.TW, AAPL, NVDA)..." autocomplete="off">
         <button onclick="triggerSearch()">深度掃描</button>
     </div>
 
@@ -202,33 +200,30 @@
             </div>
             <div class="data-card">
                 <h3>技術指標 (最新)</h3>
+                <div class="data-row"><span class="data-label">均線狀態</span><span class="data-value" id="val-ma">--</span></div>
                 <div class="data-row"><span class="data-label">RSI (14)</span><span class="data-value" id="val-rsi">--</span></div>
-                <div class="data-row"><span class="data-label">MACD (DIF)</span><span class="data-value" id="val-macd">--</span></div>
-                <div class="data-row"><span class="data-label">KD (K值)</span><span class="data-value" id="val-k">--</span></div>
+                <div class="data-row"><span class="data-label">MACD (DIF/柱狀)</span><span class="data-value" id="val-macd">--</span></div>
+                <div class="data-row"><span class="data-label">KD (K/D值)</span><span class="data-value" id="val-k">--</span></div>
             </div>
         </div>
     </div>
 
     <script>
-        // 1. 模擬熱門股票清單 (實務上這也是由後端提供)
+        // 1. 台美股焦點清單
         const hotStocks = [
-            { ticker: "2330.TW", name: "台積電", price: "1050.0" },
-            { ticker: "2317.TW", name: "鴻海", price: "210.5" },
-            { ticker: "2454.TW", name: "聯發科", price: "1250.0" },
-            { ticker: "2382.TW", name: "廣達", price: "285.0" },
-            { ticker: "3231.TW", name: "緯創", price: "115.5" },
-            { ticker: "2308.TW", name: "台達電", price: "345.0" },
-            { ticker: "NVDA", name: "輝達", price: "125.8" },
-            { ticker: "AAPL", name: "蘋果", price: "215.3" }
+            { ticker: "2330.TW", name: "台積電", price: "計算中" },
+            { ticker: "2317.TW", name: "鴻海", price: "計算中" },
+            { ticker: "2454.TW", name: "聯發科", price: "計算中" },
+            { ticker: "NVDA", name: "輝達", price: "計算中" },
+            { ticker: "AAPL", name: "蘋果", price: "計算中" },
+            { ticker: "TSLA", name: "特斯拉", price: "計算中" }
         ];
 
-        // 2. 初始化熱門區塊
         const hotStocksList = document.getElementById('hot-stocks-list');
         hotStocks.forEach(stock => {
             const pill = document.createElement('div');
             pill.className = 'stock-pill';
-            pill.innerHTML = `<span class="pill-ticker">${stock.name} (${stock.ticker})</span><span class="pill-price">$${stock.price}</span>`;
-            // 點擊事件：連動到搜尋框並觸發搜尋
+            pill.innerHTML = `<span class="pill-ticker">${stock.name} (${stock.ticker})</span>`;
             pill.onclick = () => {
                 document.getElementById('ticker-input').value = stock.ticker;
                 triggerSearch();
@@ -236,15 +231,14 @@
             hotStocksList.appendChild(pill);
         });
 
-        // 3. 搜尋按鈕與 Enter 鍵綁定
         document.getElementById('ticker-input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') triggerSearch();
         });
 
+        // 2. 分片路由讀取邏輯
         async function triggerSearch() {
             let input = document.getElementById('ticker-input').value.trim().toUpperCase();
             
-            // 自動防呆修正
             if (/^\d{4}$/.test(input)) {
                 input += ".TW";
                 document.getElementById('ticker-input').value = input;
@@ -252,54 +246,57 @@
 
             if (!input) return;
 
-            // 啟動飛鴿傳書載入動畫
             document.getElementById('report-dashboard').style.display = 'none';
             document.getElementById('loading-pigeon').style.display = 'flex';
 
-            // 🌟 核心路由技巧：計算出該股票對應的分片檔名
-            let shardKey = "US"; 
+            // 判斷路由分片索引：台股取前兩碼（如23），美股統一進入 US 分片
+            let shardKey = "US";
             if (input.includes(".TW") || input.includes(".TWO")) {
-                shardKey = input.substring(0, 2); // 提取前兩碼數字，例如 23
+                shardKey = input.substring(0, 2);
             }
 
             try {
-                // 🚀 精準請求特定分片，檔案極小，網頁載入瞬間完成
                 const shardPath = `database/data_${shardKey}.json?t=` + new Date().getTime();
                 const response = await fetch(shardPath);
                 
-                if (!response.ok) throw new Error("Shard not found");
+                if (!response.ok) throw new Error("分片未生成");
                 const shardDatabase = await response.json();
 
-                // 讓飛鴿飛 1.5 秒滿足視覺體驗
                 setTimeout(() => {
                     document.getElementById('loading-pigeon').style.display = 'none';
                     
                     if (shardDatabase[input]) {
                         const stock = shardDatabase[input];
                         document.getElementById('report-dashboard').style.display = 'block';
-                        document.getElementById('report-title').innerText = `📊 ${input} 深度特徵報告`;
+                        document.getElementById('report-title').innerText = `📊 ${input} 深度特徵量化報告`;
                         
-                        // 🌟 將原版 Python 函數在背景算好的所有技術指標，精準呈現在畫面上！
+                        // 資料精準填入
                         document.getElementById('val-price').innerText = stock.price;
-                        document.getElementById('val-52w').innerText = "已更新"; 
-                        document.getElementById('val-beta').innerText = "計算完成";
+                        document.getElementById('val-52w').innerText = stock.change_52w;
+                        document.getElementById('val-beta').innerText = stock.beta;
+                        document.getElementById('val-pe').innerText = stock.trailing_pe;
+                        document.getElementById('val-peg').innerText = stock.peg;
+                        document.getElementById('val-div').innerText = stock.dividend_yield;
+                        document.getElementById('val-rev').innerText = stock.revenue_growth;
+                        document.getElementById('val-roe').innerText = stock.roe;
+                        document.getElementById('val-de').innerText = stock.debt_to_equity;
                         
-                        document.getElementById('val-pe').innerText = "載入成功";
-                        document.getElementById('val-peg').innerText = "分片提取";
-                        document.getElementById('val-div').innerText = "靜態派發";
-                        
-                        // 技術指標面板展示
-                        document.getElementById('val-rsi').innerText = `${stock.rsi}`;
-                        document.getElementById('val-macd').innerText = `DIF:${stock.dif} | Hist:${stock.macd_hist}`;
-                        document.getElementById('val-k').innerText = `K:${stock.k} | D:${stock.d}`;
+                        // 技術指標合併呈現
+                        document.getElementById('val-ma').innerText = `MA5:${stock.ma5} | MA20:${stock.ma20}`;
+                        document.getElementById('val-rsi').innerText = stock.rsi;
+                        document.getElementById('val-macd').innerText = `DIF:${stock.dif} (Hist:${stock.macd_hist})`;
+                        document.getElementById('val-k').innerText = `K:${stock.k} / D:${stock.d}`;
                     } else {
-                        alert(`飛鴿回報：在 data_${shardKey}.json 分片中找不到 ${input}。請確認後端清單是否包含此代號。`);
+                        alert(`飛鴿找不到 ${input}！請檢查 update_all_market.py 排程清單。`);
                     }
                 }, 1500);
 
             } catch (error) {
-                console.error("資料獲取失敗:", error);
-                alert(`飛鴿迷路了！無法讀取 database/data_${shardKey}.json，請確認 Actions 腳本是否已成功跑出分片資料庫。`);
+                console.error(error);
+                alert(`資料載入失敗！請確認 Actions 是否已成功跑出 database/data_${shardKey}.json`);
                 document.getElementById('loading-pigeon').style.display = 'none';
             }
         }
+    </script>
+</body>
+</html>
