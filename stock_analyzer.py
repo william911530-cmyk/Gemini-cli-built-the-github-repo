@@ -4,7 +4,7 @@ import json
 import os
 import math
 
-# 🌟 原版技術指標運算函數 (100% 完整保留)
+# 🌟 100% 保留你原版的技術指標運算邏輯
 def calculate_technical_indicators(df):
     if df.empty or len(df) < 30:
         return df
@@ -43,72 +43,98 @@ def calculate_technical_indicators(df):
         
     return df
 
+def clean_val(val, is_pct=False, multiplier=1):
+    """資料防呆清洗器"""
+    if val is None or (isinstance(val, float) and math.isnan(val)) or val == 'N/A':
+        return 'N/A'
+    if is_pct and isinstance(val, (int, float)):
+        return f"{val * multiplier:.2f}%"
+    if isinstance(val, float):
+        return round(val, 2)
+    return val
+
 def main():
-    print("🚀 啟動全大盤平行特徵提取管線...")
+    print("🚀 啟動全市場（台股 + 美股）量化特徵管線...")
     
-    # 🌟 這裡定義你想覆蓋的完整大盤清單 (可以自由丟入幾百到上千檔台股與美股代號)
+    # 🌟 在這裡隨意加入你想監測的所有台股與美股代號
     market_tickers = [
-        "2330.TW", "2317.TW", "2454.TW", "2382.TW", "3231.TW", "3037.TW", "2603.TW",
+        "2330.TW", "2317.TW", "2454.TW", "2382.TW", "3231.TW", 
         "AAPL", "NVDA", "TSLA", "MSFT", "AMD", "GOOGL", "AMZN", "META"
     ]
     
-    # 🌟 技巧：使用 yf.download 進行大批次平行下載，只耗費 1 次請求，完全不踩流量牆
-    print(f"📥 正在下載 {len(market_tickers)} 檔大盤歷史K線數據...")
-    raw_data = yf.download(market_tickers, period="1y", group_by='ticker', progress=True)
+    print(f"📥 正在執行大批次下載歷史K線數據 (總計 {len(market_tickers)} 檔)...")
+    # 平行抓取歷史價格
+    raw_hist = yf.download(market_tickers, period="1y", group_by='ticker', progress=True)
     
-    # 用來存放分片資料的字典
     shards = {}
 
-    for ticker in market_tickers:
+    for ticker_symbol in market_tickers:
+        print(f"⚙️ 正在處理特徵工程: {ticker_symbol}")
         try:
-            # 提取單一股票的歷史數據
+            # 1. 處理歷史價格與技術指標
             if len(market_tickers) == 1:
-                df = raw_data.copy()
+                df = raw_hist.copy()
             else:
-                if ticker not in raw_data.columns.levels[0]: continue
-                df = raw_data[ticker].dropna(subset=['Close'])
+                if ticker_symbol not in raw_hist.columns.levels[0]: continue
+                df = raw_hist[ticker_symbol].dropna(subset=['Close'])
                 
-            if df.empty: continue
+            if df.empty or len(df) < 30: continue
             
-            # 丟入原版函數計算完整的 MA, RSI, MACD, KD
             df = calculate_technical_indicators(df)
             latest = df.iloc[-1]
             
-            # 封裝要給前端看的所有指標欄位
-            stock_metrics = {
-                "price": round(latest['Close'], 2) if not math.isnan(latest['Close']) else "N/A",
-                "ma5": round(latest['MA5'], 2) if 'MA5' in latest and not math.isnan(latest['MA5']) else "N/A",
-                "ma20": round(latest['MA20'], 2) if 'MA20' in latest and not math.isnan(latest['MA20']) else "N/A",
-                "ma60": round(latest['MA60'], 2) if 'MA60' in latest and not math.isnan(latest['MA60']) else "N/A",
-                "rsi": round(latest['RSI'], 2) if 'RSI' in latest and not math.isnan(latest['RSI']) else "N/A",
-                "k": round(latest['K'], 2) if 'K' in latest and not math.isnan(latest['K']) else "N/A",
-                "d": round(latest['D'], 2) if 'D' in latest and not math.isnan(latest['D']) else "N/A",
-                "dif": round(latest['DIF'], 2) if 'DIF' in latest and not math.isnan(latest['DIF']) else "N/A",
-                "macd_hist": round(latest['MACD_Hist'], 2) if 'MACD_Hist' in latest and not math.isnan(latest['MACD_Hist']) else "N/A",
-                "volume": int(latest['Volume']) if not math.isnan(latest['Volume']) else 0
+            # 2. 獲取基本面資料
+            tk = yf.Ticker(ticker_symbol)
+            info = tk.info
+            
+            # 使用你原版的 info.get 與收盤價雙保險邏輯
+            current_price = info.get('currentPrice', info.get('regularMarketPrice', None))
+            if current_price is None:
+                current_price = round(latest['Close'], 2)
+                
+            # 3. 完整對齊前端所需的 12 個資料欄位
+            metrics = {
+                "price": clean_val(current_price),
+                "change_52w": clean_val(info.get('52WeekChange'), is_pct=True, multiplier=100),
+                "beta": clean_val(info.get('beta')),
+                "trailing_pe": clean_val(info.get('trailingPE')),
+                "peg": clean_val(info.get('pegRatio')),
+                "dividend_yield": clean_val(info.get('dividendYield'), is_pct=True, multiplier=100),
+                "revenue_growth": clean_val(info.get('revenueGrowth'), is_pct=True, multiplier=100),
+                "roe": clean_val(info.get('returnOnEquity'), is_pct=True, multiplier=100),
+                "debt_to_equity": clean_val(info.get('debtToEquity')),
+                
+                # 技術面欄位精準導出
+                "ma5": clean_val(latest.get('MA5')),
+                "ma20": clean_val(latest.get('MA20')),
+                "ma60": clean_val(latest.get('MA60')),
+                "rsi": clean_val(latest.get('RSI')),
+                "k": clean_val(latest.get('K')),
+                "d": clean_val(latest.get('D')),
+                "dif": clean_val(latest.get('DIF')),
+                "macd_hist": clean_val(latest.get('MACD_Hist'))
             }
             
-            # 🌟 計算資料分片的路由金鑰 (台股取前兩碼如 '23'，美股統一歸類為 'US')
-            if ".TW" in ticker or ".TWO" in ticker:
-                shard_key = ticker[:2]
+            # 4. 資料分片路由計算
+            if ".TW" in ticker_symbol or ".TWO" in ticker_symbol:
+                shard_key = ticker_symbol[:2]
             else:
                 shard_key = "US"
                 
             if shard_key not in shards:
                 shards[shard_key] = {}
-                
-            shards[shard_key][ticker] = stock_metrics
+            shards[shard_key][ticker_symbol] = metrics
             
         except Exception as e:
-            print(f"❌ 處理 {ticker} 時發生錯誤: {e}")
+            print(f"❌ {ticker_symbol} 處理失敗: {e}")
 
-    # 🌟 將分片字典各自寫入獨立的 JSON 檔案中 (例如 data_23.json)
+    # 5. 寫入分片資料夾
     os.makedirs('database', exist_ok=True)
     for key, data in shards.items():
         filename = f"database/data_{key}.json"
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
-        print(f"💾 成功導出分片資料庫: {filename} ({len(data)} 檔股票)")
+        print(f"💾 導出分片成功: {filename} ({len(data)} 檔)")
 
 if __name__ == "__main__":
     main()
