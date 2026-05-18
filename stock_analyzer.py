@@ -1,13 +1,11 @@
 import yfinance as yf
 import pandas as pd
-import requests
-from bs4 import BeautifulSoup
-import datetime
+import json
+import os
+import math
 
+# 🌟 原版技術指標運算函數 (100% 完整保留)
 def calculate_technical_indicators(df):
-    """
-    計算基礎技術指標: MA, RSI, MACD, KD
-    """
     if df.empty or len(df) < 30:
         return df
     
@@ -45,121 +43,72 @@ def calculate_technical_indicators(df):
         
     return df
 
-def get_latest_news(ticker_symbol):
-    """
-    獲取最新新聞摘要 (簡化版：從 Yahoo Finance 抓取)
-    """
-    try:
-        url = f"https://finance.yahoo.com/quote/{ticker_symbol}/news"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        news_items = soup.find_all('h3', limit=3)
-        return [item.get_text() for item in news_items]
-    except:
-        return ["無法獲取新聞"]
+def main():
+    print("🚀 啟動全大盤平行特徵提取管線...")
+    
+    # 🌟 這裡定義你想覆蓋的完整大盤清單 (可以自由丟入幾百到上千檔台股與美股代號)
+    market_tickers = [
+        "2330.TW", "2317.TW", "2454.TW", "2382.TW", "3231.TW", "3037.TW", "2603.TW",
+        "AAPL", "NVDA", "TSLA", "MSFT", "AMD", "GOOGL", "AMZN", "META"
+    ]
+    
+    # 🌟 技巧：使用 yf.download 進行大批次平行下載，只耗費 1 次請求，完全不踩流量牆
+    print(f"📥 正在下載 {len(market_tickers)} 檔大盤歷史K線數據...")
+    raw_data = yf.download(market_tickers, period="1y", group_by='ticker', progress=True)
+    
+    # 用來存放分片資料的字典
+    shards = {}
 
-def stock_analysis(ticker_symbol):
-    print(f"\n--- 正在分析股票: {ticker_symbol} ---\n")
-    
-    ticker = yf.Ticker(ticker_symbol)
-    info = ticker.info
-    hist = ticker.history(period="1y")
-    
-    # 基礎價格與動能
-    # 優化後的寫法
-    current_price = info.get('currentPrice', info.get('regularMarketPrice', None))
+    for ticker in market_tickers:
+        try:
+            # 提取單一股票的歷史數據
+            if len(market_tickers) == 1:
+                df = raw_data.copy()
+            else:
+                if ticker not in raw_data.columns.levels[0]: continue
+                df = raw_data[ticker].dropna(subset=['Close'])
+                
+            if df.empty: continue
+            
+            # 丟入原版函數計算完整的 MA, RSI, MACD, KD
+            df = calculate_technical_indicators(df)
+            latest = df.iloc[-1]
+            
+            # 封裝要給前端看的所有指標欄位
+            stock_metrics = {
+                "price": round(latest['Close'], 2) if not math.isnan(latest['Close']) else "N/A",
+                "ma5": round(latest['MA5'], 2) if 'MA5' in latest and not math.isnan(latest['MA5']) else "N/A",
+                "ma20": round(latest['MA20'], 2) if 'MA20' in latest and not math.isnan(latest['MA20']) else "N/A",
+                "ma60": round(latest['MA60'], 2) if 'MA60' in latest and not math.isnan(latest['MA60']) else "N/A",
+                "rsi": round(latest['RSI'], 2) if 'RSI' in latest and not math.isnan(latest['RSI']) else "N/A",
+                "k": round(latest['K'], 2) if 'K' in latest and not math.isnan(latest['K']) else "N/A",
+                "d": round(latest['D'], 2) if 'D' in latest and not math.isnan(latest['D']) else "N/A",
+                "dif": round(latest['DIF'], 2) if 'DIF' in latest and not math.isnan(latest['DIF']) else "N/A",
+                "macd_hist": round(latest['MACD_Hist'], 2) if 'MACD_Hist' in latest and not math.isnan(latest['MACD_Hist']) else "N/A",
+                "volume": int(latest['Volume']) if not math.isnan(latest['Volume']) else 0
+            }
+            
+            # 🌟 計算資料分片的路由金鑰 (台股取前兩碼如 '23'，美股統一歸類為 'US')
+            if ".TW" in ticker or ".TWO" in ticker:
+                shard_key = ticker[:2]
+            else:
+                shard_key = "US"
+                
+            if shard_key not in shards:
+                shards[shard_key] = {}
+                
+            shards[shard_key][ticker] = stock_metrics
+            
+        except Exception as e:
+            print(f"❌ 處理 {ticker} 時發生錯誤: {e}")
 
-# 如果 info 抓不到股價，就從歷史數據(hist)的最後一筆收盤價來拿
-    # 基礎價格與動能
-    current_price = info.get('currentPrice', info.get('regularMarketPrice', None))
-    
-    # 如果 info 抓不到股價，就從歷史數據(hist)的最後一筆收盤價來拿
-    if current_price is None and not hist.empty:
-        current_price = round(hist['Close'].iloc[-1], 2)
-    elif current_price is None:
-        current_price = 'N/A'
-        
-    # 🌟 這行絕對不能漏掉，剛剛報錯就是因為少了它！
-    change_52w = info.get('52WeekChange', 'N/A')
-    
-    # 估值指標
-    trailing_pe = info.get('trailingPE', 'N/A')
-    
-    # 估值指標
-    trailing_pe = info.get('trailingPE', 'N/A')
-    forward_pe = info.get('forwardPE', 'N/A')
-    pe_gap = 'N/A'
-    if isinstance(trailing_pe, (int, float)) and isinstance(forward_pe, (int, float)):
-        pe_gap = trailing_pe - forward_pe
-        
-    peg = info.get('pegRatio', 'N/A')
-    pb = info.get('priceToBook', 'N/A')
-    beta = info.get('beta', 'N/A')
-    dividend_yield = info.get('dividendYield', 0) * 100 if info.get('dividendYield') else 'N/A'
-    
-    # 成長與財務
-    revenue_growth = info.get('revenueGrowth', 'N/A')
-    earnings_growth = info.get('earningsGrowth', 'N/A')
-    short_ratio = info.get('shortRatio', 'N/A')
-    ebitda = info.get('ebitda', 'N/A')
-    profit_margins = info.get('profitMargins', 'N/A')
-    roe = info.get('returnOnEquity', 'N/A')
-    debt_to_equity = info.get('debtToEquity', 'N/A')
-    total_revenue = info.get('totalRevenue', 'N/A') # 近似 Q1 收入
-    
-    # 技術指標計算
-    hist = calculate_technical_indicators(hist)
-    latest = hist.iloc[-1] if not hist.empty else None
-    
-    # 輸出結果
-    print(f"【基本資訊與價格】")
-    print(f"當前股價: {current_price}")
-    print(f"52週漲幅: {change_52w:.2%}" if isinstance(change_52w, float) else f"52週漲幅: {change_52w}")
-    print(f"股價動能 (Beta): {beta}")
-    print(f"空頭比例: {short_ratio}")
-    
-    print(f"\n【估值指標】")
-    print(f"追蹤 PE: {trailing_pe}")
-    print(f"預期 PE: {forward_pe}")
-    print(f"本益比落差: {pe_gap}")
-    print(f"PEG: {peg}")
-    print(f"股價淨值比 (P/B): {pb}")
-    print(f"股息殖利率: {dividend_yield}%")
-    
-    print(f"\n【成長與財務指標】")
-    print(f"營收成長率 (YOY): {revenue_growth}")
-    print(f"盈餘成長率 (3年期估算): {earnings_growth}")
-    print(f"EBITDA: {ebitda}")
-    print(f"利潤率: {profit_margins}")
-    print(f"ROE: {roe}")
-    print(f"D/E (債資比): {debt_to_equity}")
-    print(f"總收入 (TTM/最近): {total_revenue}")
-    
-    if latest is not None:
-        print(f"\n【技術指標 (最新)】")
-        print(f"MA5: {latest['MA5']:.2f} | MA20: {latest['MA20']:.2f} | MA60: {latest['MA60']:.2f}")
-        print(f"RSI (14): {latest['RSI']:.2f}")
-        print(f"KD: K={latest['K']:.2f}, D={latest['D']:.2f}")
-        print(f"MACD: DIF={latest['DIF']:.2f}, Hist={latest['MACD_Hist']:.2f}")
-        print(f"當日成交量: {latest['Volume']}")
-
-    print(f"\n【最新即時資訊】")
-    news = get_latest_news(ticker_symbol)
-    for n in news:
-        print(f"- {n}")
-    
-    print(f"\n註: GF Value, 預期 FY26 營收, 訂單積壓 等指標通常需付費終端機數據(如 Bloomberg/GuruFocus)，此處以現有開源數據替代。")
+    # 🌟 將分片字典各自寫入獨立的 JSON 檔案中 (例如 data_23.json)
+    os.makedirs('database', exist_ok=True)
+    for key, data in shards.items():
+        filename = f"database/data_{key}.json"
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+        print(f"💾 成功導出分片資料庫: {filename} ({len(data)} 檔股票)")
 
 if __name__ == "__main__":
-    symbol = input("請輸入股票代號 (例如 AAPL, TSLA, 2330.TW): ")
-    
-    # 🌟 新增防呆機制：如果使用者只打了 4 個數字，自動幫他加上 .TW
-    if symbol.isdigit() and len(symbol) == 4:
-        symbol = symbol + ".TW"
-        print(f"👉 偵測到純數字，已自動將代號修正為: {symbol}")
-        
-    try:
-        stock_analysis(symbol)
-    except Exception as e:
-        print(f"分析失敗: {e}")
+    main()
