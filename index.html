@@ -34,20 +34,24 @@
         header h1 { margin: 0; font-size: 2.5rem; letter-spacing: 2px; }
         header p { color: var(--text-light); margin-top: 5px; }
 
-        /* 頂部熱門股票跑馬燈/網格 */
+        /* 頂部熱門股票跑馬燈容器 */
         .hot-stocks-container {
             width: 100%;
             max-width: 1000px;
             margin-bottom: 40px;
         }
         .hot-stocks-title { font-size: 1.2rem; margin-bottom: 15px; font-weight: bold; border-left: 4px solid var(--primary); padding-left: 10px; }
+        
+        /* 🌟 優化滑動拉桿範圍：加大呼吸空間，手感更滑順舒服 */
         .hot-stocks-grid {
             display: flex;
             gap: 15px;
             overflow-x: auto;
-            padding-bottom: 10px;
+            padding: 10px 10px 20px 5px;
+            margin-bottom: -10px;
             scrollbar-width: thin;
         }
+        
         .stock-pill {
             background: var(--card-bg);
             padding: 12px 24px;
@@ -59,7 +63,7 @@
             white-space: nowrap;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             border: 1px solid rgba(255,255,255,0.5);
         }
         .stock-pill:hover {
@@ -69,7 +73,14 @@
             border-color: var(--primary);
         }
         .pill-ticker { font-weight: bold; }
-        .pill-price { color: var(--primary); font-size: 0.9rem;}
+        
+        /* 🌟 經典綠色自適應價格標籤 */
+        .pill-price { 
+            color: var(--primary); 
+            font-weight: bold; 
+            font-size: 0.95rem;
+            font-family: 'Courier New', monospace;
+        }
 
         /* 搜尋區塊 */
         .search-section {
@@ -107,7 +118,7 @@
 
         /* 飛鴿加載動畫 */
         #loading-pigeon {
-            display: none; /* 預設隱藏 */
+            display: none;
             flex-direction: column;
             align-items: center;
             margin-bottom: 30px;
@@ -120,9 +131,9 @@
             50% { transform: translateY(-15px) rotate(5deg); }
         }
 
-        /* 報告結果區 (CSS Grid) */
+        /* 報告結果區 */
         #report-dashboard {
-            display: none; /* 預設隱藏 */
+            display: none;
             width: 100%;
             max-width: 1000px;
             background: var(--card-bg);
@@ -161,7 +172,7 @@
     </header>
 
     <div class="hot-stocks-container">
-        <div class="hot-stocks-title">🔥 焦點百大台美股 (點擊即時分析)</div>
+        <div class="hot-stocks-title">🔥 焦點台美股 (點擊即時分析)</div>
         <div class="hot-stocks-grid" id="hot-stocks-list"></div>
     </div>
 
@@ -209,33 +220,60 @@
     </div>
 
     <script>
-        // 1. 台美股焦點清單
+        // 🌟 焦點股票陣列（如需新增股票，直接在這裡加即可！）
         const hotStocks = [
-            { ticker: "2330.TW", name: "台積電", price: "計算中" },
-            { ticker: "2317.TW", name: "鴻海", price: "計算中" },
-            { ticker: "2454.TW", name: "聯發科", price: "計算中" },
-            { ticker: "NVDA", name: "輝達", price: "計算中" },
-            { ticker: "AAPL", name: "蘋果", price: "計算中" },
-            { ticker: "TSLA", name: "特斯拉", price: "計算中" }
+            { ticker: "2330.TW", name: "台積電" },
+            { ticker: "2317.TW", name: "鴻海" },
+            { ticker: "2454.TW", name: "聯發科" },
+            { ticker: "2382.TW", name: "廣達" },
+            { ticker: "3231.TW", name: "緯創" },
+            { ticker: "NVDA", name: "輝達" },
+            { ticker: "AAPL", name: "蘋果" },
+            { ticker: "TSLA", name: "特斯拉" }
         ];
 
+        // 🌟 初始化焦點區塊，並自動動態向分片索取真實的綠色收盤價
         const hotStocksList = document.getElementById('hot-stocks-list');
-        hotStocks.forEach(stock => {
-            const pill = document.createElement('div');
-            pill.className = 'stock-pill';
-            pill.innerHTML = `<span class="pill-ticker">${stock.name} (${stock.ticker})</span>`;
-            pill.onclick = () => {
-                document.getElementById('ticker-input').value = stock.ticker;
-                triggerSearch();
-            };
-            hotStocksList.appendChild(pill);
-        });
+        
+        async function initHotStocks() {
+            for (let stock of hotStocks) {
+                const pill = document.createElement('div');
+                pill.className = 'stock-pill';
+                pill.id = `pill-${stock.ticker.replace('.', '_')}`;
+                // 預設先放載入狀態，後面動態覆蓋
+                pill.innerHTML = `<span class="pill-ticker">${stock.name} (${stock.ticker})</span><span class="pill-price" id="price-${stock.ticker.replace('.', '_')}">...</span>`;
+                
+                pill.onclick = () => {
+                    document.getElementById('ticker-input').value = stock.ticker;
+                    triggerSearch();
+                };
+                hotStocksList.appendChild(pill);
+
+                // 異步去分片資料庫撈收盤價
+                let shardKey = "US";
+                if (stock.ticker.includes(".TW") || stock.ticker.includes(".TWO")) {
+                    shardKey = stock.ticker.substring(0, 2);
+                }
+                try {
+                    fetch(`database/data_${shardKey}.json?t=` + new Date().getTime())
+                        .then(res => res.json())
+                        .then(db => {
+                            if (db[stock.ticker]) {
+                                document.getElementById(`price-${stock.ticker.replace('.', '_')}`).innerText = `$${db[stock.ticker].price}`;
+                            }
+                        }).catch(() => {});
+                } catch(e){}
+            }
+        }
+
+        // 頁面加載完成後立刻初始化焦點股票價格
+        initHotStocks();
 
         document.getElementById('ticker-input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') triggerSearch();
         });
 
-        // 2. 分片路由讀取邏輯
+        // 深度掃描路由讀取邏輯
         async function triggerSearch() {
             let input = document.getElementById('ticker-input').value.trim().toUpperCase();
             
@@ -249,7 +287,6 @@
             document.getElementById('report-dashboard').style.display = 'none';
             document.getElementById('loading-pigeon').style.display = 'flex';
 
-            // 判斷路由分片索引：台股取前兩碼（如23），美股統一進入 US 分片
             let shardKey = "US";
             if (input.includes(".TW") || input.includes(".TWO")) {
                 shardKey = input.substring(0, 2);
@@ -270,8 +307,7 @@
                         document.getElementById('report-dashboard').style.display = 'block';
                         document.getElementById('report-title').innerText = `📊 ${input} 深度特徵量化報告`;
                         
-                        // 資料精準填入
-                        document.getElementById('val-price').innerText = stock.price;
+                        document.getElementById('val-price').innerText = `$${stock.price}`;
                         document.getElementById('val-52w').innerText = stock.change_52w;
                         document.getElementById('val-beta').innerText = stock.beta;
                         document.getElementById('val-pe').innerText = stock.trailing_pe;
@@ -281,19 +317,18 @@
                         document.getElementById('val-roe').innerText = stock.roe;
                         document.getElementById('val-de').innerText = stock.debt_to_equity;
                         
-                        // 技術指標合併呈現
-                        document.getElementById('val-ma').innerText = `MA5:${stock.ma5} | MA20:${stock.ma20}`;
+                        document.getElementById('val-ma').innerText = `MA5:${stock.ma5} | MA20:${stock.ma20} | MA60:${stock.ma60}`;
                         document.getElementById('val-rsi').innerText = stock.rsi;
-                        document.getElementById('val-macd').innerText = `DIF:${stock.dif} (Hist:${stock.macd_hist})`;
-                        document.getElementById('val-k').innerText = `K:${stock.k} / D:${stock.d}`;
+                        document.getElementById('val-macd').innerText = `DIF: ${stock.dif} (柱狀: ${stock.macd_hist})`;
+                        document.getElementById('val-k').innerText = `K: ${stock.k} / D: ${stock.d}`;
                     } else {
-                        alert(`飛鴿找不到 ${input}！請檢查 update_all_market.py 排程清單。`);
+                        alert(`飛鴿找不到 ${input}！請檢查後端 update_all_market.py 清單是否包含此代號。`);
                     }
                 }, 1500);
 
             } catch (error) {
                 console.error(error);
-                alert(`資料載入失敗！請確認 Actions 是否已成功跑出 database/data_${shardKey}.json`);
+                alert(`資料載入失敗！請確認 Actions 是否已手動點擊執行成功。`);
                 document.getElementById('loading-pigeon').style.display = 'none';
             }
         }
