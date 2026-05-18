@@ -1,0 +1,10 @@
+- name: 執行全大盤特徵提取腳本
+        run: python update_all_market.py
+        
+      - name: 將最新分片資料庫推送回 GitHub
+        run: |
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "action@github.com"
+          git add database/
+          git commit -m "🤖 自動更新全大盤分片特徵資料庫" || echo "No changes to commit"
+          git push
