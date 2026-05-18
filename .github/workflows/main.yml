@@ -2,9 +2,8 @@ name: 自動更新全大盤分片特徵資料庫
 
 on:
   schedule:
-    # 每天台灣時間凌晨 5 點 (國際標準時間 21:00) 自動跑一次
     - cron: '0 21 * * *' 
-  workflow_dispatch: # 允許你在 GitHub 網頁上手動點擊執行
+  workflow_dispatch: 
 
 jobs:
   update-data:
@@ -24,13 +23,12 @@ jobs:
           pip install yfinance pandas requests beautifulsoup4
           
       - name: 執行全大盤特徵提取腳本
-        # 🌟 注意：如果你的 Python 檔名是 stock_analyzer.py，請把下面這行改成 python stock_analyzer.py
-        run: python stock_analyzer.py 
+        run: python update_all_market.py
         
       - name: 將最新分片資料庫推送回 GitHub
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
           git add database/ || true
-          git commit -m "🤖 自動更新全大盤分片特徵資料庫" || echo "No changes to commit"
+          git commit -m "🤖 自動更新全大盤台美股分片特徵資料庫" || echo "No changes to commit"
           git push
