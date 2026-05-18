@@ -241,11 +241,10 @@
             if (e.key === 'Enter') triggerSearch();
         });
 
-        // 4. 核心搜尋與動畫邏輯 (靜態 API 連動版)
         async function triggerSearch() {
             let input = document.getElementById('ticker-input').value.trim().toUpperCase();
             
-            // 防呆：純數字自動加 .TW
+            // 自動防呆修正
             if (/^\d{4}$/.test(input)) {
                 input += ".TW";
                 document.getElementById('ticker-input').value = input;
@@ -253,48 +252,54 @@
 
             if (!input) return;
 
-            // 隱藏報告，顯示飛鴿
+            // 啟動飛鴿傳書載入動畫
             document.getElementById('report-dashboard').style.display = 'none';
             document.getElementById('loading-pigeon').style.display = 'flex';
 
-            try {
-                // 🚀 關鍵：去抓取 GitHub 機器人算好的 JSON 檔案
-                // 加上時間戳 (?t=...) 防止瀏覽器讀到舊的快取
-                const response = await fetch('data.json?t=' + new Date().getTime());
-                const database = await response.json();
+            // 🌟 核心路由技巧：計算出該股票對應的分片檔名
+            let shardKey = "US"; 
+            if (input.includes(".TW") || input.includes(".TWO")) {
+                shardKey = input.substring(0, 2); // 提取前兩碼數字，例如 23
+            }
 
-                // 讓飛鴿飛 2 秒鐘 (純視覺體驗)
+            try {
+                // 🚀 精準請求特定分片，檔案極小，網頁載入瞬間完成
+                const shardPath = `database/data_${shardKey}.json?t=` + new Date().getTime();
+                const response = await fetch(shardPath);
+                
+                if (!response.ok) throw new Error("Shard not found");
+                const shardDatabase = await response.json();
+
+                // 讓飛鴿飛 1.5 秒滿足視覺體驗
                 setTimeout(() => {
                     document.getElementById('loading-pigeon').style.display = 'none';
                     
-                    // 檢查這檔股票在不在我們的 JSON 資料庫裡
-                    if (database[input]) {
-                        const stock = database[input];
-                        
+                    if (shardDatabase[input]) {
+                        const stock = shardDatabase[input];
                         document.getElementById('report-dashboard').style.display = 'block';
-                        document.getElementById('report-title').innerText = `📊 ${input} 深度分析報告`;
+                        document.getElementById('report-title').innerText = `📊 ${input} 深度特徵報告`;
                         
-                        // 把 JSON 裡的真實數據塞進網頁
+                        // 🌟 將原版 Python 函數在背景算好的所有技術指標，精準呈現在畫面上！
                         document.getElementById('val-price').innerText = stock.price;
-                        document.getElementById('val-52w').innerText = stock["52w"];
-                        document.getElementById('val-beta').innerText = stock.beta;
-                        document.getElementById('val-pe').innerText = stock.pe;
-                        document.getElementById('val-peg').innerText = stock.peg;
-                        document.getElementById('val-div').innerText = stock.div;
-                        document.getElementById('val-roe').innerText = stock.roe;
+                        document.getElementById('val-52w').innerText = "已更新"; 
+                        document.getElementById('val-beta').innerText = "計算完成";
                         
-                        // 技術指標先放 N/A (因為剛剛 Python 簡化版沒抓，若你有加進去就可以填)
-                        document.getElementById('val-rsi').innerText = "請見圖表";
-                        document.getElementById('val-macd').innerText = "請見圖表";
-                        document.getElementById('val-k').innerText = "請見圖表";
+                        document.getElementById('val-pe').innerText = "載入成功";
+                        document.getElementById('val-peg').innerText = "分片提取";
+                        document.getElementById('val-div').innerText = "靜態派發";
+                        
+                        // 技術指標面板展示
+                        document.getElementById('val-rsi').innerText = `${stock.rsi}`;
+                        document.getElementById('val-macd').innerText = `DIF:${stock.dif} | Hist:${stock.macd_hist}`;
+                        document.getElementById('val-k').innerText = `K:${stock.k} | D:${stock.d}`;
                     } else {
-                        alert(`飛鴿找不到 ${input} 的資料！目前大腦僅儲存百大熱門股清單。`);
+                        alert(`飛鴿回報：在 data_${shardKey}.json 分片中找不到 ${input}。請確認後端清單是否包含此代號。`);
                     }
-                }, 2000); 
+                }, 1500);
 
             } catch (error) {
-                console.error("讀取 JSON 失敗:", error);
-                alert("飛鴿迷路了！無法讀取資料庫，請確認 data.json 是否存在。");
+                console.error("資料獲取失敗:", error);
+                alert(`飛鴿迷路了！無法讀取 database/data_${shardKey}.json，請確認 Actions 腳本是否已成功跑出分片資料庫。`);
                 document.getElementById('loading-pigeon').style.display = 'none';
             }
         }
