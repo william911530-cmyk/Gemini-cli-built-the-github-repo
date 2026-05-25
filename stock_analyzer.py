@@ -53,6 +53,17 @@ def clean_val(val, is_pct=False, multiplier=1):
         return round(val, 2)
     return val
 
+def safe_pct(val, normal_max=1.0):
+    """當 val > normal_max 時，視為已經是百分比數值，不乘 100"""
+    if val is None or (isinstance(val, float) and math.isnan(val)) or val == 'N/A':
+        return 'N/A'
+    if isinstance(val, (int, float)):
+        if abs(val) > normal_max:    # 可能已為百分比格式
+            return f"{val:.2f}%"
+        else:
+            return f"{val * 100:.2f}%"
+    return val
+
 def main():
     print("🚀 啟動全市場（台股 + 美股）量化特徵管線...")
     
@@ -98,16 +109,16 @@ def main():
             # 3. 完整對齊前端所需的 12 個資料欄位
             metrics = {
                 "price": clean_val(current_price),
-                "change_52w": clean_val(info.get('52WeekChange'), is_pct=True, multiplier=100),
+                "change_52w": safe_pct(info.get('52WeekChange'), normal_max=5.0),          # ✅ 改用 safe_pct
                 "beta": clean_val(info.get('beta')),
                 "trailing_pe": clean_val(info.get('trailingPE')),
                 "peg": clean_val(info.get('pegRatio')),
-                "dividend_yield": clean_val(info.get('dividendYield'), is_pct=True, multiplier=100),
-                "revenue_growth": clean_val(info.get('revenueGrowth'), is_pct=True, multiplier=100),
-                "roe": clean_val(info.get('returnOnEquity'), is_pct=True, multiplier=100),
+                "dividend_yield": safe_pct(info.get('dividendYield'), normal_max=1.0),     # ✅ 改用 safe_pct
+                "revenue_growth": safe_pct(info.get('revenueGrowth'), normal_max=5.0),      # ✅ 改用 safe_pct
+                "roe": safe_pct(info.get('returnOnEquity'), normal_max=5.0),                # ✅ 改用 safe_pct
                 "debt_to_equity": clean_val(info.get('debtToEquity')),
-                
-                # 技術面欄位精準導出
+
+                # 技術面欄位維持原樣
                 "ma5": clean_val(latest.get('MA5')),
                 "ma20": clean_val(latest.get('MA20')),
                 "ma60": clean_val(latest.get('MA60')),
