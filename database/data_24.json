@@ -1,9 +1,9 @@
 {
     "2454.TW": {
-        "price": 3555.0,
+        "price": 3910.0,
         "change_52w": "167.29%",
-        "beta": 1.9,
-        "trailing_pe": 56.5,
+        "beta": 1.96,
+        "trailing_pe": 62.14,
         "peg": 1.73,
         "dividend_yield": "1.50%",
         "revenue_growth": "1.20%",
@@ -15,7 +15,7 @@
         "rsi": 44.16,
         "k": 36.96,
         "d": 36.52,
-        "dif": -164.16,
+        "dif": -164.17,
         "macd_hist": -32.78
     }
 }
