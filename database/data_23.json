@@ -1,11 +1,11 @@
 {
     "2317.TW": {
         "price": 260.0,
-        "change_52w": "28.53%",
+        "change_52w": "31.31%",
         "beta": 0.88,
         "trailing_pe": 18.65,
         "peg": 1.17,
-        "dividend_yield": "2.71%",
+        "dividend_yield": "2.76%",
         "revenue_growth": "28.90%",
         "roe": "11.81%",
         "debt_to_equity": 66.62,
@@ -18,11 +18,30 @@
         "dif": 3.17,
         "macd_hist": 2.39
     },
+    "2382.TW": {
+        "price": 298.0,
+        "change_52w": "2.76%",
+        "beta": 0.67,
+        "trailing_pe": 15.53,
+        "peg": 1.02,
+        "dividend_yield": "5.23%",
+        "revenue_growth": "66.60%",
+        "roe": "36.84%",
+        "debt_to_equity": 224.22,
+        "ma5": 300.2,
+        "ma20": 320.97,
+        "ma60": 335.96,
+        "rsi": 41.67,
+        "k": 39.68,
+        "d": 32.93,
+        "dif": -13.58,
+        "macd_hist": -1.64
+    },
     "2330.TW": {
         "price": 2370.0,
-        "change_52w": "97.45%",
+        "change_52w": "100.85%",
         "beta": 1.26,
-        "trailing_pe": 32.22,
+        "trailing_pe": 32.15,
         "peg": 0.88,
         "dividend_yield": "1.01%",
         "revenue_growth": "36.00%",
@@ -36,24 +55,5 @@
         "d": 62.46,
         "dif": -7.31,
         "macd_hist": 3.33
-    },
-    "2382.TW": {
-        "price": 298.0,
-        "change_52w": "3.44%",
-        "beta": 0.67,
-        "trailing_pe": 15.51,
-        "peg": 1.02,
-        "dividend_yield": "5.17%",
-        "revenue_growth": "66.60%",
-        "roe": "36.84%",
-        "debt_to_equity": 224.22,
-        "ma5": 300.2,
-        "ma20": 320.97,
-        "ma60": 335.96,
-        "rsi": 41.67,
-        "k": 39.68,
-        "d": 32.93,
-        "dif": -13.58,
-        "macd_hist": -1.64
     }
 }
