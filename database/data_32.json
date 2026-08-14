@@ -1,21 +1,21 @@
 {
     "3231.TW": {
-        "price": 197.0,
-        "change_52w": "66.09%",
+        "price": 193.5,
+        "change_52w": "69.10%",
         "beta": 0.77,
-        "trailing_pe": 20.78,
+        "trailing_pe": 20.37,
         "peg": 0.9,
-        "dividend_yield": "2.84%",
+        "dividend_yield": "2.79%",
         "revenue_growth": "62.40%",
         "roe": "30.94%",
         "debt_to_equity": 218.54,
-        "ma5": 190.1,
-        "ma20": 173.6,
-        "ma60": 159.13,
-        "rsi": 61.76,
-        "k": 74.54,
-        "d": 74.52,
-        "dif": 10.57,
-        "macd_hist": 1.57
+        "ma5": 191.6,
+        "ma20": 176.12,
+        "ma60": 160.29,
+        "rsi": 60.84,
+        "k": 77.47,
+        "d": 75.51,
+        "dif": 10.83,
+        "macd_hist": 1.47
     }
 }
